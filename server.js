@@ -5,9 +5,11 @@ const cors = require('cors')
 const cookieParser = require('cookie-parser')
 require('dotenv').config();
 
-bodyParser.urlencoded({extended:false})
+app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({extended:false}))
 app.use(cookieParser())
 app.use(cors())
+app.use(cookieParser(process.env.COOKIE_TOP_SECRET));// eslint-disable-line
 
 const PORT = process.env.PORT
 
