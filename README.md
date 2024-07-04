@@ -22,4 +22,10 @@ docker volume ls
 docker volume prune // delete unnecessary volumes
 // to delete both container and associated volume, you do a docker rm -vf
 docker run -v ${pwd}:/app:ro -v /app/node_modules --env-file ./.env //To include env file
-
+docker-compose up -d 
+docker-compose down -v
+docker compose doesnt know if there is any change in the dockerfile so you mus pass in build flag manually to rebuild the image if not already present
+docker-compose up -d --build
+Since the dockerignore runs in the first phase of the build process, however when volume enters the build, it stores copies over all files regardless of the files that are in the .dockerignore file
+docker-compose -f docker-compose.yml -f docker-compose-dev.yml up -d // -f file should be in order first is base and later is environment
+To prevent any dev dependencies to run in the server use npm install --only=production

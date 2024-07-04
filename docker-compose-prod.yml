@@ -1,0 +1,10 @@
+version: "2"
+services:
+  node-app:
+    build:
+      context: .
+      args: 
+        NODE_ENV: production
+    env_file:
+      - ./.env.prod
+    command: node server.js
