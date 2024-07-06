@@ -8,6 +8,11 @@ services:
     volumes:
       - ./:/app
       - /app/node_modules    
-    env_file:
-      - ./.env
     command: npm run start
+
+  mydb:
+    volumes:
+      - my-db:/var/lib/mysql
+volumes:
+  my-db:
+    

@@ -8,3 +8,9 @@ services:
     env_file:
       - ./.env.prod
     command: node server.js
+
+  mydb:
+    volumes:
+      - my-db:/var/lib/mysql
+volumes:
+  my-db:
