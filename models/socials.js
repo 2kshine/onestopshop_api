@@ -3,7 +3,6 @@ const {
   Model
 } = require('sequelize');
 const { v4: uuidv4 } = require('uuid');
-const User = require('./user');
 module.exports = (sequelize, DataTypes) => {
   class Socials extends Model {
     /**
@@ -13,7 +12,7 @@ module.exports = (sequelize, DataTypes) => {
      */
     static associate(models) {
       // define association here
-      Socials.belongsTo(User, {
+      Socials.belongsTo(models.User, {
         foreignKey: 'userId'
       })
     }

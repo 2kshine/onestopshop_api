@@ -4,7 +4,7 @@
   "description": "Learn docker hands on ",
   "main": "server.js",
   "scripts": {
-    "start": "nodemon ./server.js",
+    "start": "nodemon -L ./server.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
@@ -23,8 +23,9 @@
   "bugs": {
     "url": "https://github.com/2kshine/learndocker/issues"
   },
-  "homepage": "https://github.com/2kshine/learndocker#readme",
+  "homepage": "https://github.com/2kshine/learndocker#read>me",
   "dependencies": {
+    "@logdna/logger": "^2.6.9",
     "body-parser": "^1.20.2",
     "cookie-parser": "^1.4.6",
     "cors": "^2.8.5",
@@ -36,6 +37,9 @@
     "uuid": "^10.0.0"
   },
   "devDependencies": {
+    "@eslint/js": "^9.6.0",
+    "eslint": "^9.6.0",
+    "globals": "^15.8.0",
     "nodemon": "^3.1.4"
   }
 }

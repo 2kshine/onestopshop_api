@@ -3,8 +3,6 @@ const {
   Model
 } = require('sequelize');
 const { v4: uuidv4 } = require('uuid');
-const UserInfo = require('./userinfo');
-const Socials = require('./socials');
 module.exports = (sequelize, DataTypes) => {
   class User extends Model {
     /**
@@ -14,11 +12,11 @@ module.exports = (sequelize, DataTypes) => {
      */
     static associate(models) {
       // define association here
-      User.hasOne(UserInfo, {
+      User.hasOne(models.UserInfo, {
         as: 'user_user_info',
         foreignKey: 'userId'
       })
-      User.hasMany(Socials, {
+      User.hasMany(models.Socials, {
         as: 'user_socials',
         foreignKey: 'userId'
       })
@@ -31,7 +29,7 @@ module.exports = (sequelize, DataTypes) => {
       primaryKey: true,
       unique:true
     },
-    user_name: DataTypes.STRING,
+    username: DataTypes.STRING,
     email_address: DataTypes.STRING,
     password: DataTypes.STRING,
   }, {
