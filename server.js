@@ -4,7 +4,8 @@ const bodyParser = require("body-parser");
 const cors = require("cors");
 const cookieParser = require("cookie-parser");
 const { sequelize } = require("./models/index.js");
-
+const logger = require('./config/cloudwatch-logs.js')
+const routes = require('./src/routes/index.js')
 require("dotenv").config();
 
 app.use(bodyParser.json());
@@ -12,7 +13,7 @@ app.use(bodyParser.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(cors());
 app.use(cookieParser(process.env.COOKIE_TOP_SECRET));
-
+app.use(routes)
 const PORT = process.env.PORT;
 
 app.use("/", (req, res) => {
