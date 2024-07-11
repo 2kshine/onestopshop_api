@@ -1,15 +1,15 @@
 'use strict';
 /** @type {import('sequelize-cli').Migration} */
 module.exports = {
-  async up(queryInterface, Sequelize) {
+  async up (queryInterface, Sequelize) {
     await queryInterface.createTable('Users', {
       id: {
         type: Sequelize.UUID,
         defaultValue: Sequelize.UUIDV4, // Default value generated using UUIDV4
         primaryKey: true,
-        unique:true
+        unique: true
       },
-      username:{
+      username: {
         type: Sequelize.STRING
       },
       email_address: {
@@ -17,6 +17,9 @@ module.exports = {
       },
       password: {
         type: Sequelize.STRING
+      },
+      is_email_verified: {
+        type: Sequelize.BOOLEAN
       },
       createdAt: {
         allowNull: false,
@@ -31,7 +34,7 @@ module.exports = {
       }
     });
   },
-  async down(queryInterface, Sequelize) {
+  async down (queryInterface, Sequelize) {
     await queryInterface.dropTable('Users');
   }
 };

@@ -10,16 +10,16 @@ module.exports = (sequelize, DataTypes) => {
      * This method is not a part of Sequelize lifecycle.
      * The `models/index` file will call this method automatically.
      */
-    static associate(models) {
+    static associate (models) {
       // define association here
       User.hasOne(models.UserInfo, {
         as: 'user_user_info',
         foreignKey: 'userId'
-      })
+      });
       User.hasMany(models.Socials, {
         as: 'user_socials',
         foreignKey: 'userId'
-      })
+      });
     }
   }
   User.init({
@@ -27,11 +27,12 @@ module.exports = (sequelize, DataTypes) => {
       type: DataTypes.UUID,
       defaultValue: DataTypes.UUIDV4, // Default value generated using UUIDV4
       primaryKey: true,
-      unique:true
+      unique: true
     },
     username: DataTypes.STRING,
     email_address: DataTypes.STRING,
     password: DataTypes.STRING,
+    is_email_verified: DataTypes.BOOLEAN
   }, {
     sequelize,
     modelName: 'User',
