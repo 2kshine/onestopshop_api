@@ -6,7 +6,6 @@ const cookieParser = require('cookie-parser');
 const { sequelize } = require('./models/index.js');
 const routes = require('./src/routes/index.js');
 require('dotenv').config();
-
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(cookieParser());
@@ -22,6 +21,7 @@ app.use('/', (req, res) => {
 });
 
 app.listen(PORT, async () => {
+  // sequelize.sync({ force: true });
   sequelize
     .authenticate()
     .then(() => console.log('Successfully made connection to the database.'));

@@ -10,11 +10,11 @@ module.exports = (sequelize, DataTypes) => {
      * This method is not a part of Sequelize lifecycle.
      * The `models/index` file will call this method automatically.
      */
-    static associate(models) {
+    static associate (models) {
       // define association here
       Socials.belongsTo(models.User, {
         foreignKey: 'userId'
-      })
+      });
     }
   }
   Socials.init({
@@ -22,20 +22,19 @@ module.exports = (sequelize, DataTypes) => {
       type: DataTypes.UUID,
       defaultValue: DataTypes.UUIDV4, // Default value generated using UUIDV4
       primaryKey: true,
-      unique:true
+      unique: true
     },
     instagram_access_token: DataTypes.STRING,
     userId: { // Foreign key
-      type: DataTypes.UUID,
-      allowNull: false,
+      type: DataTypes.UUID
     }
   }, {
     sequelize,
-    modelName: 'Socials',
+    modelName: 'Socials'
   });
 
   Socials.beforeCreate((user) => {
-    socials.id = uuidv4(); // Assign a new UUID using the uuid() function from 'uuid' package
+    Socials.id = uuidv4(); // Assign a new UUID using the uuid() function from 'uuid' package
   });
 
   return Socials;

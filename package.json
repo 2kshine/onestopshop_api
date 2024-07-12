@@ -37,6 +37,7 @@
     "lru-cache": "^5.1.1",
     "luxon": "^3.4.4",
     "mysql2": "^3.10.2",
+    "node-mailjet": "^6.0.5",
     "sequelize": "^6.37.3",
     "sequelize-cli": "^6.6.2",
     "uuid": "^10.0.0"

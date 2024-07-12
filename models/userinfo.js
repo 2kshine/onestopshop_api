@@ -11,11 +11,11 @@ module.exports = (sequelize, DataTypes) => {
      * This method is not a part of Sequelize lifecycle.
      * The `models/index` file will call this method automatically.
      */
-    static associate(models) {
+    static associate (models) {
       // define association here
       UserInfo.belongsTo(models.User, {
         foreignKey: 'userId'
-      })
+      });
     }
   }
   UserInfo.init({
@@ -23,22 +23,21 @@ module.exports = (sequelize, DataTypes) => {
       type: DataTypes.UUID,
       defaultValue: DataTypes.UUIDV4, // Default value generated using UUIDV4
       primaryKey: true,
-      unique:true
+      unique: true
     },
-    first_name:DataTypes.STRING,
+    first_name: DataTypes.STRING,
     last_name: DataTypes.STRING,
     date_of_birth: DataTypes.DATE,
-    country:DataTypes.STRING,
+    country: DataTypes.STRING,
     userId: { // Foreign key
-      type: DataTypes.INTEGER,
-      allowNull: false,
-      unique: true 
+      type: DataTypes.UUID,
+      unique: true
     }
-    }, {
+  }, {
     sequelize,
-    modelName: 'UserInfo',
+    modelName: 'UserInfo'
   });
-  
+
   UserInfo.beforeCreate((user) => {
     UserInfo.id = uuidv4(); // Assign a new UUID using the uuid() function from 'uuid' package
   });
