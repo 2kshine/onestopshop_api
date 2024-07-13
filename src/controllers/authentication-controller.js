@@ -1,11 +1,14 @@
 const logger = require('../../config/cloudwatch-logs');
+const { CatchAndSendErrorResponse } = require('../helpers/error-response');
 const database = require('../services/database');
 const { sendJWTTokenForEmailVerification } = require('../services/email-service');
 const jwtToken = require('../services/jsonwebtoken');
-const { isEmailValid, isUsernameValid } = require('../services/property-validation');
+const { isEmailValid, isUsernameValid, isPasswordStrong } = require('../services/property-validation');
+const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
 
-const { UX_URL } = process.env;
-const authenticate = async (req, res) => {
+const { UX_URL, APP_AUTHORIZATION_NAME } = process.env;
+const register = async (req, res) => {
   let { username, email_address } = req.body;
   username = username.trim();
   email_address = email_address.trim();
@@ -64,32 +67,22 @@ const authenticate = async (req, res) => {
       message: 'User Registered successfully.'
     });
   } catch (err) {
-    console.log(err);
-    let status = 500;
-    let message = 'Internal server error. Please try again later!';
-    if (err.message.includes('THROW_NEW_ERROR')) {
-      status = 400;
-      message = 'Something went wrong! Please try again later';
-    } else {
-      logger.log('authentication', 'Server error occured.. !!! Aborting the request!!', req, 'error', { error: err.message });
-    }
-    res.status(status).json({
-      message
-    });
+    CatchAndSendErrorResponse({ headers: req.headers }, res, err, 'REGISTRATION_FAILED');
   }
 };
 
-const verifyEmailAddressToken = async (req, res) => {
-  // Condition of token verification
-  /*
+// Condition of token verification
+/*
       Token on decode, ip or userAgent should match
       If neither one of those match then, it has been tampered with.
     */
-  try {
-    const { token } = req.query;
-    const { JWT_SECRET_KEY } = process.env;
-    logger.log('authentication', 'Email address token verification request.. !!! Commencing the request!!', req, 'info', { payload: token });
 
+const verifyEmailAddressToken = async (req, res) => {
+  const { token } = req.query;
+  const { JWT_SECRET_KEY } = process.env;
+  logger.log('authentication', 'Email address token verification request.. !!! Commencing the request!!', req, 'info', { payload: token });
+
+  try {
     // Check if token is present or not.
     if (!token) {
       logger.log('authentication', 'No token found.. !!! Aborting the request!!', req, 'error', null);
@@ -97,7 +90,7 @@ const verifyEmailAddressToken = async (req, res) => {
     }
 
     // Decode authenticity of the received token from query
-    const userData = jwtToken.verify(token, JWT_SECRET_KEY);
+    const userData = jwt.verify(token, JWT_SECRET_KEY);
     if (!userData) {
       logger.log('authentication', 'Failed to verify JWT TOKEN. !!! Aborting the request!!', req, 'error', { error: token });
       throw new Error('THROW_NEW_ERROR: Failed to verify token.');
@@ -106,7 +99,7 @@ const verifyEmailAddressToken = async (req, res) => {
     // Verify Authenticity of the decoded token
     const { ip, userAgent, id, email_address } = userData;
     const user = await database.findAUser({ userId: id });
-    if ((req.id !== ip && userAgent !== req.get('user-agent')) || !user) {
+    if ((req.id !== ip && userAgent !== req.get('user-agent')) || !user) { // Can access token from any browser as long as ip matches
       logger.log('authentication', 'Failed authenticity of JWT TOKEN. Tampering detected !!! Aborting the request!!', req, 'error', { error: { ip, userAgent, id, email_address } });
       throw new Error('THROW_NEW_ERROR: Failed to verify token.');
     }
@@ -119,28 +112,121 @@ const verifyEmailAddressToken = async (req, res) => {
     const verifyPasswordToken = jwtToken({ userId: user.id, email_address }, '2h', { ip: req.ip, userAgent: req.get('user-agent') });
 
     // Send response back marking end of user registration phase 2.
-    logger.log('authentication', 'Successfully created token for password page !!! Redirecting to the password page now.!!!', req, 'info', { payload: verifyPasswordToken });
-    const redirectLink = UX_URL + '/create-password' + `?sessionToken=${verifyPasswordToken}`;
-    return res.status(201).redirect(redirectLink);
+    logger.log('authentication', 'Successfully created token for password page !!! Redirecting to the password page now.!!!', req, 'info', null);
+    const redirectLink = UX_URL + '/create-password';
+    return res.status(201).setHeader(APP_AUTHORIZATION_NAME, verifyPasswordToken).cookie('user_activity', req.get('user-agent'), {
+      maxAge: 10 * 60 * 1000, // 10 minutes of activity
+      signed: true
+    }).redirect(redirectLink);
   } catch (err) {
-    console.log(err);
-    let status = 500;
-    let message = 'Internal server error. Please try again later!';
-    if (err.message.includes('THROW_NEW_ERROR')) {
-      status = 400;
-      message = 'Something went wrong! Please try again later';
-    } else {
-      logger.log('authentication', 'Server error occured.. !!! Aborting the request!!', req, 'error', { error: err.message });
-    }
-    res.status(status).json({
-      code: 'USER_VERIFY_UNSUCCESSFULL',
-      message
-    });
+    CatchAndSendErrorResponse({ headers: req.headers }, res, err, 'USER_VERIFY_UNSUCCESSFULL');
   }
 };
 
+// Condition of password strength
+/*
+  Lowercase, uppercase, number, symbol and minimum length of 10
+*/
 const createPassword = async (req, res) => {
+  const { password } = req.body;
+  const { ip, userAgent, id, email_address } = req.user;
+  const BCRYPT_SALT = 10;
+  logger.log('authentication', 'Password change token verification request.. !!! Commencing the request!!', req, 'info', { payload: { ip, userAgent, id, email_address } });
 
+  try {
+    // Check if password passes the required verification
+    logger.log('authentication', 'Verifying password strength.. !!!', req, 'info', { payload: { ip, userAgent, id, email_address } });
+    const isPassword = isPasswordStrong(password);
+    if (!isPassword) {
+      logger.log('authentication', 'Failed strength test of the password. !!! Aborting the request!!', req, 'error', { error: { ip, userAgent, id, email_address } });
+      throw new Error('THROW_NEW_ERROR: Failed to verify token.');
+    }
+
+    // Encrypt password and store in the db.
+    logger.log('authentication', 'Attempt to encrypt password for storage!!!', req, 'info', { data: { ip, userAgent, id, email_address } });
+    const hashPassword = await new Promise((resolve, reject) => {
+      bcrypt.hash(password, BCRYPT_SALT, (err, hash) => {
+        if (err) {
+          logger.log('authentication', 'Failed to encrypt password. !!! Check logs!!', req, 'error', { error: { ip, userAgent, id, email_address, err } });
+          reject(new Error('THROW_NEW_ERROR: Failed to encrypt password. !!! Check logs!!'));
+        }
+        resolve(hash);
+      });
+    });
+    await database.updateAUser(await database.findAUser({ userId: id, email_address }), { password: hashPassword });
+    logger.log('authentication', 'Successfully stored encrypted password. !!! Redirecting!!', req, 'info', { data: { ip, userAgent, id, email_address } });
+
+    // Redirect user to the portal marking end of user registration phase 3.
+    const redirectLink = UX_URL + '/dashboard';
+    return res.redirect(redirectLink);
+  } catch (err) {
+    CatchAndSendErrorResponse({ headers: req.headers }, res, err, 'PASSWORD_FAILED');
+  }
 };
 
-module.exports = { authenticate, verifyEmailAddressToken, createPassword };
+// Condition of login
+/*
+  To login user can either put in username or email and password
+  User session will be valid for 10 minutes if no action is detected then user have to login again.
+*/
+const login = async (req, res) => {
+  const { loginUser, password } = req.body;
+  logger.log('authentication', 'Login request received.. !!! Commencing the request!!', req, 'info', { payload: loginUser });
+
+  try {
+    // Check if loginUser is email or not and also if user exist
+    const isEmail = isEmailValid(loginUser);
+    const loginPayload = {};
+    loginPayload[!isEmail ? 'username' : 'email_address'] = loginUser;
+    const user = await database.findAUser(loginPayload);
+    if (!user) {
+      logger.log('authentication', 'Failed to find account with user login. !!! Check logs!!', req, 'error', { error: { loginUser } });
+      throw new Error('THROW_NEW_ERROR: Failed to find account with user login. !!! Check logs!!');
+    }
+
+    // Check if password match
+    const { username, email_address, hashPassword, userId } = user;
+    logger.log('authentication', 'Account found. Now checking if password match.. !!! Commencing the password check!!', req, 'info', { payload: { username, email_address } });
+    await new Promise((resolve, reject) => {
+      bcrypt.compare(password, hashPassword, (err, result) => {
+        if (err) {
+          logger.log('authentication', 'Failed to check password. !!! Check logs!!', req, 'error', { error: { username, email_address, err } });
+          reject(new Error('THROW_NEW_ERROR: Failed to decrypt password. !!! Check logs!!'));
+        }
+        if (!result) {
+          logger.log('authentication', 'Password is incorrect. !!! Aborting the request!!', req, 'error', { error: { username, email_address, err } });
+          reject(new Error('THROW_NEW_ERROR: Password is incorrect. !!! Aborting the request!!'));
+        }
+        logger.log('authentication', 'Successfully stored encrypted password. !!! Setup user activity session!! Redirecting!!', req, 'info', { data: { username, email_address } });
+        resolve(result);
+      });
+    });
+
+    // Password matches Generate a token and redirect user to the portal with user session and token
+    const loginSessionToken = jwtToken({ userId, email_address }, '2h', { ip: req.ip, userAgent: req.get('user-agent') });
+    const redirectLink = UX_URL + '/dashboard';
+    return res.status(201).setHeader(APP_AUTHORIZATION_NAME, loginSessionToken).cookie('user_activity', req.get('user-agent'), {
+      maxAge: 10 * 60 * 1000, // 10 minutes of activity
+      signed: true
+    }).redirect(redirectLink);
+  } catch (err) {
+    CatchAndSendErrorResponse({ headers: req.headers }, res, err, 'LOGIN_FAILED');
+  }
+};
+
+const logout = async (req, res) => {
+  const { ip, userAgent, id, email_address } = req.body;
+  logger.log('authentication', 'Logout request received.. !!! Commencing the request!! Clearing user_activity cookie', req, 'info', { payload: { ip, userAgent, id, email_address } });
+
+  try {
+    // Clear cookie and redirect to login page
+    await res.clearCookie('user_activity');
+    logger.log('authentication', 'Logged out successfully.. !!! Redirecting to the home page.', req, 'info', { payload: { ip, userAgent, id, email_address } });
+    const redirectLink = UX_URL + '/';
+    res.status(200).redirect(redirectLink);
+  } catch (err) {
+    CatchAndSendErrorResponse({ headers: req.headers }, res, err, 'LOGOUT_FAILED');
+  }
+};
+
+module.exports = { register, verifyEmailAddressToken, createPassword, login, logout };

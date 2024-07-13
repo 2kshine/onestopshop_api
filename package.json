@@ -27,7 +27,9 @@
   "dependencies": {
     "@aws-sdk/client-cloudwatch-logs": "^3.613.0",
     "aws-sdk": "^2.1657.0",
+    "bcrypt": "^5.1.1",
     "body-parser": "^1.20.2",
+    "check-password-strength": "^2.0.10",
     "cookie-parser": "^1.4.6",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
