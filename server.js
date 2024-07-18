@@ -5,6 +5,7 @@ const cors = require('cors');
 const cookieParser = require('cookie-parser');
 const { sequelize } = require('./models/index.js');
 const routes = require('./src/routes/index.js');
+const { sixDigitCodeRedis } = require('./src/services/redis-connect.js');
 require('dotenv').config();
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: false }));
@@ -22,6 +23,8 @@ app.use('/', (req, res) => {
 
 app.listen(PORT, async () => {
   // sequelize.sync({ force: true });
+  console.log(typeof await sixDigitCodeRedis('userId', 'get', 'something1234'));
+
   sequelize
     .authenticate()
     .then(() => console.log('Successfully made connection to the database.'));

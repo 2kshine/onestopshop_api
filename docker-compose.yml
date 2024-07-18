@@ -4,10 +4,26 @@ services:
     build: .
     ports:
       - "8080:8080"
-    env_file:
-      - ./.env
+    depends_on:
+      - redis
+      - mydb
+    networks:
+      - onestopshop-network
 
   mydb:
     image: mysql
-    env_file:
-      - ./.env
+    volumes:
+      - my-db:/var/lib/mysql
+    networks:
+      - onestopshop-network
+  
+  redis:
+    image: redis:latest
+    networks:
+      - onestopshop-network
+
+volumes:
+  my-db:
+networks:
+  onestopshop-network:
+    driver: bridge
