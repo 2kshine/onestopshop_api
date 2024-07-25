@@ -1,5 +1,5 @@
 #Take Base image and tweak a bit to have our custom image run in it
-FROM node:18
+FROM node:18-alpine
 WORKDIR /app
 #Since workdir is pointer to a dir so only . is fine
 # if any of these layers steps change, lets say if 6 is changed, all the steps after that is going to re run

@@ -1,7 +1,6 @@
 const jwt = require('jsonwebtoken');
 const jwtToken = require('../services/jsonwebtoken');
 const logger = require('../../config/cloudwatch-logs');
-const { CatchAndSendErrorResponse } = require('../helpers/error-response');
 
 /*
       User agent value from user activity is a backup and also should be checked for user activity authenticity
@@ -61,7 +60,8 @@ const isAuthenticated = async (req, res, next) => {
     });
     next();
   } catch (err) {
-    CatchAndSendErrorResponse({ headers: req.headers }, res, err, 'ACCESS_DENIED');
+    logger.log('authentication', 'Server error occured.. !!! Aborting the request!!', req, 'error', { error: err.message });
+    return res.status(500);
   }
 };
 

@@ -7,5 +7,8 @@ router.post('/verify-emailaddress', authenticationController.verifyEmailAddressT
 router.post('/create-password', isAuthenticated, authenticationController.createPassword);
 router.post('/login', authenticationController.login);
 router.post('/logout', isAuthenticated, authenticationController.logout);
+router.post('/change-password-code', isAuthenticated, authenticationController.changePasswordSendEmail);
+router.post('/change-password', isAuthenticated, authenticationController.changePasswordAction);
+router.post('/check-validity', authenticationController.isEmailAddressOrUsernameUnique);
 
 module.exports = router;

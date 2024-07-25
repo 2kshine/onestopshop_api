@@ -6,8 +6,8 @@ const isEmailValid = (emailAddress) => {
 };
 
 const isUsernameValid = (username) => {
-  const usernameRegex = /\S\s+\S/;
-  return !usernameRegex.test(username); // username test passed means it has spaces
+  const usernameRegex = /^[a-zA-Z0-9_]{3,20}$/;
+  return usernameRegex.test(username);
 };
 
 const isPasswordStrong = (password) => {
