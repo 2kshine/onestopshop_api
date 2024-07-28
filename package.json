@@ -27,6 +27,7 @@
   "dependencies": {
     "@aws-sdk/client-cloudwatch-logs": "^3.613.0",
     "aws-sdk": "^2.1657.0",
+    "axios": "^1.7.2",
     "bcrypt": "^5.1.1",
     "body-parser": "^1.20.2",
     "check-password-strength": "^2.0.10",
@@ -35,6 +36,7 @@
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
     "glob": "^10.4.5",
+    "http-proxy-middleware": "^3.0.0",
     "jsonwebtoken": "^9.0.2",
     "lru-cache": "^5.1.1",
     "luxon": "^3.4.4",

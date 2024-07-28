@@ -22,6 +22,15 @@ services:
     networks:
       - onestopshop-network
 
+  nginx:
+    build:
+      context: ./nginx
+    container_name: onestopshop-nginx-proxy
+    ports:
+      - "80:80"  # Map port 80 of the host to port 80 of the container
+    # depends_on:
+    #   - node-app
+
 volumes:
   my-db:
 networks:
