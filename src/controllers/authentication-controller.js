@@ -8,7 +8,7 @@ const jwt = require('jsonwebtoken');
 const { getRandomSixDigitInteger } = require('../helpers/misc');
 const { sixDigitCodeRedis } = require('../services/redis-connect');
 
-const { UX_URL, APP_AUTHORIZATION_NAME } = process.env;
+const { APP_AUTHORIZATION_NAME } = process.env;
 const BCRYPT_SALT = 10;
 
 const register = async (req, res) => {
@@ -182,7 +182,7 @@ const setPassword = async (req, res) => {
     await database.updateAUser(await database.findAUser({ userId: id, email_address }), { password: hashPassword });
     logger.log('authentication', 'setPassword: Successfully stored encrypted password. !!! Redirecting!!', req, 'info', { data: { ip, userAgent, id, email_address } });
 
-    return res.status('201').json({});
+    return res.status(201).json({});
   } catch (err) {
     logger.log('authentication', 'setPassword: Server error occured.. !!! Aborting the request!!', req, 'error', { error: err.message });
     return res.status(500).json({ message: 'Something went wrong!!' });
@@ -195,22 +195,22 @@ const setPassword = async (req, res) => {
   User session will be valid for 10 minutes if no action is detected then user have to login again.
 */
 const login = async (req, res) => {
-  const { loginUser, password } = req.body;
-  logger.log('authentication', 'login: Login request received.. !!! Commencing the request!!', req, 'info', { payload: loginUser });
+  const { login_user, password } = req.body;
+  logger.log('authentication', 'login: Login request received.. !!! Commencing the request!!', req, 'info', { payload: login_user });
 
   try {
     // Check if loginUser is email or not and also if user exist
-    const isEmail = isEmailValid(loginUser);
+    const isEmail = isEmailValid(login_user);
     const loginPayload = {};
-    loginPayload[!isEmail ? 'username' : 'email_address'] = loginUser;
+    loginPayload[!isEmail ? 'username' : 'email_address'] = login_user;
     const user = await database.findAUser(loginPayload);
     if (!user) {
-      logger.log('authentication', 'login: Failed to find account with user login. !!! Check logs!!', req, 'error', { error: { loginUser } });
-      return res.status(400);
+      logger.log('authentication', 'login: Failed to find account with user login. !!! Check logs!!', req, 'error', { error: { login_user } });
+      return res.status(400).json({ message: 'No user found' });
     }
 
     // Check if password match
-    const { username, email_address, hashPassword, userId } = user;
+    const { username, email_address, password: hashPassword, userId } = user;
     logger.log('authentication', 'login: Account found. Now checking if password match.. !!! Commencing the password check!!', req, 'info', { payload: { username, email_address } });
     await new Promise((resolve, reject) => {
       bcrypt.compare(password, hashPassword, (err, result) => {
@@ -220,7 +220,7 @@ const login = async (req, res) => {
         }
         if (!result) {
           logger.log('authentication', 'login: Password is incorrect. !!! Aborting the request!!', req, 'error', { error: { username, email_address, err } });
-          return res.status(401);
+          return res.status(401).json({ message: 'Login failed' });
         }
         logger.log('authentication', 'login: Successfully stored encrypted password. !!! Setup user activity session!! Redirecting!!', req, 'info', { data: { username, email_address } });
         resolve(result);
@@ -229,13 +229,12 @@ const login = async (req, res) => {
 
     // Password matches Generate a token and redirect user to the portal with user session and token
     const loginSessionToken = jwtToken({ userId, email_address }, '2h', { ip: req.ip, userAgent: req.get('user-agent') });
-    const redirectLink = UX_URL + '/dashboard';
-    return res.status(201).setHeader(APP_AUTHORIZATION_NAME, loginSessionToken).cookie('user_activity', req.get('user-agent'), {
+    return res.status(200).setHeader(APP_AUTHORIZATION_NAME, loginSessionToken).cookie('user_activity', req.get('user-agent'), {
       maxAge: 10 * 60 * 1000, // 10 minutes of activity
       signed: true
-    }).redirect(redirectLink);
+    }).json({ message: 'success' });
   } catch (err) {
-    logger.log('authentication', 'Server error occured.. !!! Aborting the request!!', req, 'error', { error: err.message });
+    logger.log('authentication', 'login: Server error occured.. !!! Aborting the request!!', req, 'error', { error: err.message });
     return res.status(500).json({ message: 'Something went wrong!!' });
   }
 };
@@ -246,96 +245,100 @@ const logout = async (req, res) => {
 
   try {
     // Clear cookie and redirect to login page
-    await res.clearCookie('user_activity');
+    res.clearCookie('user_activity');
     logger.log('authentication', 'logout: Logged out successfully.. !!! Redirecting to the home page.', req, 'info', { payload: { ip, userAgent, id, email_address } });
-    const redirectLink = UX_URL + '/';
-    res.status(200).redirect(redirectLink);
+    res.status(200).json({ message: 'success' });
   } catch (err) {
-    logger.log('authentication', 'Server error occured.. !!! Aborting the request!!', req, 'error', { error: err.message });
+    logger.log('authentication', 'logout: Server error occured.. !!! Aborting the request!!', req, 'error', { error: err.message });
     return res.status(500).json({ message: 'Something went wrong!!' }); ;
   }
 };
 
 const changePasswordSendEmail = async (req, res) => {
-  const { ip, userAgent, id, email_address } = req.user;
-  logger.log('authentication', 'changePasswordSendEmail: Password change request found.. !!! Commencing the request!!', req, 'info', { payload: { ip, userAgent, id, email_address } });
+  const { email_address } = req.body;
+  logger.log('authentication', 'changePasswordSendEmail: Password change request found.. !!! Commencing the request!!', req, 'info', { email_address });
   try {
-    // Send six digit code and store in redis session
-    logger.log('authentication', 'changePasswordSendEmail: Attempt to get six digit code and store in redis session.. !!!', req, 'info', { payload: { ip, userAgent, id, email_address } });
-    const sixDigitCode = getRandomSixDigitInteger();
-    const setSessionResponse = await sixDigitCodeRedis(`${id}`, 'set', sixDigitCode.toString());
-    if (setSessionResponse !== 'SUCCESS') {
-      logger.log('authentication', 'changePasswordSendEmail: Failed to store session data .. !!! Check logs for details.', req, 'error', { ip, userAgent, id, email_address, error: setSessionResponse });
+    // Find user with the email_address
+    const user = await database.findAUser({ email_address });
+    if (!user) {
+      logger.log('authentication', 'changePasswordSendEmail: Failed to get user object with email address.. !!! Aborting!!', req, 'info', { email_address });
+      return res.status(400).json({ message: 'Failed' });
     }
 
-    // Send Email with the six digit code
-    const user = await database.findAUser({ id, email_address });
-    logger.log('authentication', 'changePasswordSendEmail: Session stored successfully, Attempting to send email Email sent successfully.. !!! ', req, 'info', { payload: { ip, userAgent, id, email_address } });
+    // Send six digit code and store in redis session
+    logger.log('authentication', 'changePasswordSendEmail: Attempt to get six digit code and store in redis session.. !!!', req, 'info', { email_address });
+    const sixDigitCode = getRandomSixDigitInteger();
+    const setSessionResponse = await sixDigitCodeRedis(`${user.userId}`, 'set', sixDigitCode.toString());
+    if (setSessionResponse !== 'SUCCESS') {
+      logger.log('authentication', 'changePasswordSendEmail: Failed to store session data .. !!! Check logs for details.', req, 'error', { email_address });
+    }
+
+    logger.log('authentication', 'changePasswordSendEmail: Session stored successfully, Attempting to send email Email sent successfully.. !!! ', req, 'info', { email_address });
     const { error, response } = await sendSixDigitCodeByEmail(user.username, email_address, sixDigitCode);
     if (error) {
-      logger.log('authentication', 'changePasswordSendEmail: Failed to send email .. !!! Check logs for details.', req, 'error', { ip, userAgent, id, email_address, error });
+      console.log(error);
+      logger.log('authentication', 'changePasswordSendEmail: Failed to send email .. !!! Check logs for details.', req, 'error', { email_address });
       // No failover has been setup. Have a feature setup in UI to resend email feature.
       return res.status(500).json({ message: 'Something went wrong!!' }); ;
     } else {
-      logger.log('authentication', 'changePasswordSendEmail: Email sent successfully.. !!! ', req, 'info', { payload: { ip, userAgent, id, email_address, data: response } });
+      logger.log('authentication', 'changePasswordSendEmail: Email sent successfully.. !!! ', req, 'info', { email_address });
     }
 
     return res.status(200).json({
       code: 'EMAIL_SENT'
     });
   } catch (err) {
-    logger.log('authentication', 'Server error occured.. !!! Aborting the request!!', req, 'error', { error: err.message });
+    console.log(err);
+    logger.log('authentication', 'changePasswordSendEmail: Server error occured.. !!! Aborting the request!!', req, 'error', { error: err.message });
     return res.status(500).json({ message: 'Something went wrong!!' }); ;
   }
 };
 
 const changePasswordAction = async (req, res) => {
-  const { ip, userAgent, id, email_address } = req.user;
-  const { six_digit_code, password } = req.body;
-  logger.log('authentication', 'changePasswordAction: Password change Action request found.. !!! Commencing the request!!', req, 'info', { payload: { ip, userAgent, id, email_address } });
+  const { email_address, six_digit_code } = req.body;
+  logger.log('authentication', 'changePasswordAction: Password change Action request found.. !!! Commencing the request!!', req, 'info', { email_address, six_digit_code });
   try {
+    // Get user account based on email address
+    const user = await database.findAUser({ email_address });
+    if (!user) {
+      logger.log('authentication', 'changePasswordAction: Failed to get user object with email address.. !!! Aborting!!', req, 'info', { email_address, six_digit_code });
+      return res.status(400).json({ message: 'Failed' });
+    }
+
     // Get six digit code from redis
-    logger.log('authentication', 'changePasswordAction: Attempt to get six digit from redis session.. !!!', req, 'info', { payload: { ip, userAgent, id, email_address } });
-    const setSessionResponse = await sixDigitCodeRedis(`${id}`, 'get');
+    logger.log('authentication', 'changePasswordAction: Attempt to get six digit from redis session.. !!!', req, 'info', { email_address, six_digit_code });
+    const setSessionResponse = await sixDigitCodeRedis(`${user.userId}`, 'get');
     if (!setSessionResponse) {
-      logger.log('authentication', 'changePasswordAction: Failed to retrieve session data .. !!', req, 'error', { ip, userAgent, id, email_address });
-      return res.status(400);
+      logger.log('authentication', 'changePasswordAction: Failed to retrieve session data .. !!', req, 'error', { email_address, six_digit_code });
+      return res.status(400).json({ message: 'Failed' });
     }
 
     // Check if sixDigitCode from the user matches the one in the session, then delete once matched
     if (six_digit_code.toString() !== setSessionResponse) {
-      logger.log('authentication', 'changePasswordAction: Code received from the user doesnt match the one in the session .. !!', req, 'error', { ip, userAgent, id, email_address, user_code: six_digit_code });
-      return res.status(400);
+      logger.log('authentication', 'changePasswordAction: Code received from the user doesnt match the one in the session .. !!', req, 'error', { email_address, six_digit_code });
+      return res.status(400).json({ message: 'Mismatch' });
     }
-    await sixDigitCodeRedis(`${id}`, 'delete');
-    // redirect to the set password page in UI
-    // Check if the password satisfies the validation process.
-    logger.log('authentication', 'changePasswordAction: Six digit code matches, verifying password strength.. !!!', req, 'info', { payload: { ip, userAgent, id, email_address } });
-    const isPassword = isPasswordStrong(password);
-    if (!isPassword) {
-      logger.log('authentication', 'changePasswordAction: Failed strength test of the password. !!! Aborting the request!!', req, 'error', { error: { ip, userAgent, id, email_address } });
-      return res.status(401);
-    }
+    await sixDigitCodeRedis(`${user.userId}`, 'delete');
 
-    // Encrypt password and store in the db.
-    logger.log('authentication', 'changePasswordAction: Attempt to encrypt password for storage!!!', req, 'info', { data: { ip, userAgent, id, email_address } });
-    const hashPassword = await new Promise((resolve, reject) => {
-      bcrypt.hash(password, BCRYPT_SALT, (err, hash) => {
-        if (err) {
-          logger.log('authentication', 'changePasswordAction: Failed to encrypt password. !!! Check logs!!', req, 'error', { error: { ip, userAgent, id, email_address, err } });
-          return res.status(500).json({ message: 'Something went wrong!!' }); ;
-        }
-        resolve(hash);
-      });
-    });
-    await database.updateAUser(await database.findAUser({ userId: id, email_address }), { password: hashPassword });
-    logger.log('authentication', 'changePasswordAction: Successfully stored encrypted password. Sending Response!!', req, 'info', { data: { ip, userAgent, id, email_address } });
+    // Create JWT token to redirect to password change page and another token to access password page.
+    const headerToken = jwtToken({ userId: user.userId, email_address }, '2h', { ip: req.ip, userAgent: req.get('user-agent') });
+    const verifyPasswordToken = jwtTokenAccessPasswordPage('1h');
 
-    return res.status(200).json({
-      code: 'PASSWORD_CHANGED_SUCCESS'
+    // Send response back marking end of user registration phase 2.
+    logger.log('authentication', 'changePasswordAction: Successfully created token for password page !!! Redirecting to the password page now.!!!', req, 'info', null);
+
+    // Set Headers
+    res.setHeader(APP_AUTHORIZATION_NAME, headerToken);
+
+    // return the cookie
+    res.cookie('user_activity', req.get('user-agent'), {
+      path: '/',
+      maxAge: 5 * 60 * 60 * 1000, // 10 minutes of activity
+      signed: true
     });
+    return res.status(200).json({ token: verifyPasswordToken });
   } catch (err) {
-    logger.log('authentication', 'Server error occured.. !!! Aborting the request!!', req, 'error', { error: err.message });
+    logger.log('authentication', 'changePasswordAction: Server error occured.. !!! Aborting the request!!', req, 'error', { error: err.message });
     return res.status(500).json({ message: 'Something went wrong!!' }); ;
   }
 };
@@ -381,7 +384,7 @@ const isEmailAddressOrUsernameUnique = async (req, res) => {
       code: 'EMAIL_OR_USER_UNIQUE'
     });
   } catch (err) {
-    logger.log('authentication', 'Server error occured.. !!! Aborting the request!!', req, 'error', { error: err.message });
+    logger.log('authentication', 'isEmailAddressOrUsernameUnique: Server error occured.. !!! Aborting the request!!', req, 'error', { error: err.message });
     return res.status(500).json({ message: 'Something went wrong!!' }); ;
   }
 };
@@ -406,8 +409,6 @@ const resendEmailVerificationLink = async (req, res) => {
     }
 
     // Resend verification email link to verify user email address
-    console.log('debug');
-    console.log({ userId: isUserExist.userId, email_address, ip: req.ip, userAgent: req.get('user-agent') });
     logger.log('authentication', 'resendEmailVerificationLink: Begin the process of verifying user email address.. !!! Setting up jwt valid for 2 hours', req, 'info', { payload: { userId: isUserExist.userId, email_address } });
     const verifyEmailToken = jwtToken({ userId: isUserExist.userId, email_address }, '2h', { ip: req.ip, userAgent: req.get('user-agent') });
     logger.log('authentication', 'resendEmailVerificationLink: Attempting to send verification token via email.. !!! ', req, 'info', { payload: { userId: isUserExist.userId, email_address } });
