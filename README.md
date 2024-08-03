@@ -29,3 +29,8 @@ docker-compose up -d --build
 Since the dockerignore runs in the first phase of the build process, however when volume enters the build, it stores copies over all files regardless of the files that are in the .dockerignore file
 docker-compose -f docker-compose.yml -f docker-compose-dev.yml up -d // -f file should be in order first is base and later is environment
 To prevent any dev dependencies to run in the server use npm install --only=production
+
+Setup so that mysql runs first and then the nodeapp
+    depends_on:
+      - mydb
+to negate above use the flag --no-deps node-app in the docker-compose

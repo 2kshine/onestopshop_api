@@ -23,15 +23,37 @@
   "bugs": {
     "url": "https://github.com/2kshine/learndocker/issues"
   },
-  "homepage": "https://github.com/2kshine/learndocker#readme",
+  "homepage": "https://github.com/2kshine/learndocker#read>me",
   "dependencies": {
+    "@aws-sdk/client-cloudwatch-logs": "^3.613.0",
+    "aws-sdk": "^2.1657.0",
+    "axios": "^1.7.2",
+    "bcrypt": "^5.1.1",
     "body-parser": "^1.20.2",
+    "check-password-strength": "^2.0.10",
     "cookie-parser": "^1.4.6",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
-    "express": "^4.19.2"
+    "express": "^4.19.2",
+    "glob": "^10.4.5",
+    "http-proxy-middleware": "^3.0.0",
+    "jsonwebtoken": "^9.0.2",
+    "lru-cache": "^5.1.1",
+    "luxon": "^3.4.4",
+    "mysql2": "^3.10.2",
+    "node-mailjet": "^6.0.5",
+    "redis": "^4.6.15",
+    "sequelize": "^6.37.3",
+    "sequelize-cli": "^6.6.2",
+    "uuid": "^10.0.0"
   },
   "devDependencies": {
-    "nodemon": "^3.1.4"
+    "eslint": "^8.57.0",
+    "eslint-config-standard": "^17.1.0",
+    "eslint-plugin-import": "^2.29.1",
+    "eslint-plugin-n": "^16.6.2",
+    "eslint-plugin-promise": "^6.4.0",
+    "nodemon": "^3.1.4",
+    "rimraf": "^6.0.1"
   }
 }

@@ -4,5 +4,35 @@ services:
     build: .
     ports:
       - "8080:8080"
-    env_file:
-      - ./.env
+    depends_on:
+      - redis
+      - mydb
+    networks:
+      - onestopshop-network
+
+  mydb:
+    image: mysql
+    volumes:
+      - my-db:/var/lib/mysql
+    networks:
+      - onestopshop-network
+  
+  redis:
+    image: redis:latest
+    networks:
+      - onestopshop-network
+
+  nginx:
+    build:
+      context: ./nginx
+    container_name: onestopshop-nginx-proxy
+    ports:
+      - "80:80"  # Map port 80 of the host to port 80 of the container
+    # depends_on:
+    #   - node-app
+
+volumes:
+  my-db:
+networks:
+  onestopshop-network:
+    driver: bridge

@@ -5,6 +5,17 @@ services:
       context: .
       args: 
         NODE_ENV: production
+    container_name: onestopshop-node
     env_file:
       - ./.env.prod
     command: node server.js
+
+  mydb:
+    container_name: onestopshop-mysql
+    env_file:
+      - ./.env.prod
+
+  redis:
+    env_file:
+      - ./.env.prod
+    container_name: onestopshop-redis

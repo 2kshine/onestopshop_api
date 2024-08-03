@@ -5,9 +5,26 @@ services:
       context: .
       args:
         NODE_ENV: development
+    container_name: onestopshop-node-dev
+    env_file:
+      - ./.env
     volumes:
       - ./:/app
       - /app/node_modules    
+    command: npm run start
+
+  mydb:
     env_file:
       - ./.env
-    command: npm run start
+    ports:
+      - "3306:3306"
+    container_name: onestopshop-mysql-dev
+
+  redis:
+    env_file:
+      - ./.env
+    ports:
+      - "6379:6379"
+    container_name: onestopshop-redis-dev
+
+    
